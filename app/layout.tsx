@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "bizai chat",
+  title: "BizAI chat",
   description: "Chat with your business AI",
 };
 
