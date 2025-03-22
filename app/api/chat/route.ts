@@ -1,24 +1,35 @@
 // app/api/chat/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { groq } from "@ai-sdk/groq";
-import { generateText } from "ai";
+import { streamText } from "ai";
+
+export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
-  const { message } = await req.json();
-
   try {
-    const { text } = await generateText({
+    const body = await req.json();
+    const { messages } = body; // useChat sends an array of messages
+
+    console.log("Request body:", body); // Debug: Log incoming request
+
+    // Extract the latest user message
+    const latestMessage = messages[messages.length - 1].content;
+
+    const result = await streamText({
       model: groq("llama3-70b-8192"),
-      prompt: message, // Using prompt for simplicity; can switch to messages later
+      prompt: latestMessage,
       maxTokens: 150,
     });
 
-    return NextResponse.json({ reply: text });
+    return result.toDataStreamResponse();
   } catch (error) {
-    console.error("Error calling Groq:", error);
-    return NextResponse.json(
-      { error: "Failed to get response" },
-      { status: 500 }
+    console.error("Error streaming from Groq:", error);
+    return new Response(
+      JSON.stringify({ error: "Failed to stream response" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
     );
   }
 }

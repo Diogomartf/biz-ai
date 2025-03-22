@@ -5,6 +5,7 @@
       "name": "biz-ai",
       "dependencies": {
         "@ai-sdk/groq": "^1.2.0",
+        "@ai-sdk/react": "^1.2.0",
         "@radix-ui/react-scroll-area": "^1.2.3",
         "@radix-ui/react-slot": "^1.1.2",
         "ai": "^4.2.0",

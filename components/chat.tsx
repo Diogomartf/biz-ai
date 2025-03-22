@@ -1,60 +1,25 @@
-// components/Chat.tsx
+// components/chat.tsx
 "use client";
 
-import { useState } from "react";
+import { useChat } from "@ai-sdk/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface Message {
-  role: string;
-  content: string;
-}
-
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = { role: "user", content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
-      });
-      const data = await res.json();
-
-      if (data.error) throw new Error(data.error);
-
-      const aiMessage: Message = { role: "assistant", content: data.reply };
-      setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
-      console.error("Error:", error);
-      setMessages(prev => [
-        ...prev,
-        { role: "assistant", content: "Sorry, something went wrong." },
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { messages, input, handleInputChange, handleSubmit, isLoading } =
+    useChat({
+      api: "/api/chat",
+    });
 
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">AI Chat</h1>
-      <ScrollArea className="flex-1 mb-6 p-4 border rounded-2xl bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+      <h1 className="text-3xl font-bold mb-6 text-foreground">AI Chat</h1>
+      <ScrollArea className="flex-1 mb-6 p-4 border rounded-2xl bg-background scroll-area-viewport">
         <div className="space-y-4">
-          {messages.map((msg, idx) => (
+          {messages.map(msg => (
             <div
-              key={idx}
+              key={msg.id}
               className={`flex ${
                 msg.role === "user" ? "justify-end" : "justify-start"
               }`}
@@ -62,8 +27,8 @@ export default function Chat() {
               <div
                 className={`max-w-xs p-3 rounded-2xl ${
                   msg.role === "user"
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-foreground"
                 }`}
               >
                 {msg.content}
@@ -72,22 +37,21 @@ export default function Chat() {
           ))}
         </div>
       </ScrollArea>
-      <div className="flex gap-3">
+      <form onSubmit={handleSubmit} className="flex gap-3">
         <Input
           value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyPress={e => e.key === "Enter" && handleSend()}
+          onChange={handleInputChange}
           placeholder="Type your message..."
-          className="flex-1 rounded-xl dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100"
+          className="flex-1 rounded-xl bg-background text-foreground border-input"
         />
         <Button
-          onClick={handleSend}
+          type="submit"
           disabled={isLoading}
-          className="rounded-xl"
+          className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
         >
           {isLoading ? "Sending..." : "Send"}
         </Button>
-      </div>
+      </form>
     </div>
   );
 }
