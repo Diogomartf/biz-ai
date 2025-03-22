@@ -10,8 +10,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { messages } = body; // useChat sends an array of messages
 
-    console.log("Request body:", body); // Debug: Log incoming request
-
     // Extract the latest user message
     const latestMessage = messages[messages.length - 1].content;
 
