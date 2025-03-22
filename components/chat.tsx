@@ -6,16 +6,17 @@ import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import Link from "next/link";
 
 export default function Chat() {
   const { messages, input, handleInputChange, handleSubmit, isLoading } =
     useChat({
       api: "/api/chat",
+      // For now, context is empty; we'll add it via API in Phase 3
     });
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Custom hook to debounce scrolling
   const useDebouncedScroll = (delay: number) => {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -43,7 +44,7 @@ export default function Chat() {
     return scrollToBottom;
   };
 
-  const scrollToBottom = useDebouncedScroll(100); // Debounce by 100ms
+  const scrollToBottom = useDebouncedScroll(100);
 
   useEffect(() => {
     scrollToBottom();
@@ -51,7 +52,14 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6 text-foreground">BizAI Chat</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-foreground">BizAI Chat</h1>
+        <Link href="/dashboard" className="cursor-pointer">
+          <Button className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">
+            Go to Dashboard
+          </Button>
+        </Link>
+      </div>
       <ScrollArea
         ref={scrollRef}
         className="flex-1 mb-6 p-4 border rounded-2xl bg-background scroll-smooth"

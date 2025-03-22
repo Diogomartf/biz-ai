@@ -7,10 +7,7 @@ export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { messages } = body; // useChat sends an array of messages
-
-    // Extract the latest user message
+    const { messages } = await req.json();
     const latestMessage = messages[messages.length - 1].content;
 
     const result = await streamText({
