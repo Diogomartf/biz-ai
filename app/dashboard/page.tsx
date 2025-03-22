@@ -6,28 +6,55 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Upload from "@/components/upload";
 
-export default function Dashboard() {
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
-  const [preview, setPreview] = useState<string>("");
+interface FileData {
+  content: string;
+  size: number; // Size in bytes
+}
 
-  // Load from localStorage on mount
+export default function Dashboard() {
+  const [uploadedFiles, setUploadedFiles] = useState<FileData[]>([]);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+
   useEffect(() => {
     const storedFiles = localStorage.getItem("uploadedFiles");
     if (storedFiles) {
-      setUploadedFiles(JSON.parse(storedFiles));
+      const parsedFiles = JSON.parse(storedFiles);
+      const normalizedFiles = parsedFiles.map(
+        (file: string | { content: string; size: number }) =>
+          typeof file === "string"
+            ? { content: file, size: 0 }
+            : { content: file.content || "", size: file.size || 0 }
+      );
+      setUploadedFiles(normalizedFiles);
     }
   }, []);
 
-  // Save to localStorage on update
   useEffect(() => {
-    if (uploadedFiles.length > 0) {
-      localStorage.setItem("uploadedFiles", JSON.stringify(uploadedFiles));
-    }
+    localStorage.setItem("uploadedFiles", JSON.stringify(uploadedFiles));
   }, [uploadedFiles]);
 
-  const handleUpload = (data: string) => {
-    setUploadedFiles(prev => [...prev, data]);
-    setPreview(data.slice(0, 200)); // Show first 200 chars as preview
+  const handleUpload = (data: string, fileSize: number) => {
+    setUploadedFiles(prev => [...prev, { content: data, size: fileSize }]);
+    setPreviewIndex(uploadedFiles.length); // Open preview for the latest upload
+  };
+
+  const handleDelete = (index: number) => {
+    setUploadedFiles(prev => {
+      const newFiles = prev.filter((_, i) => i !== index);
+      localStorage.setItem("uploadedFiles", JSON.stringify(newFiles));
+      return newFiles;
+    });
+    setPreviewIndex(null); // Close preview if deleting the previewed file
+  };
+
+  const togglePreview = (index: number) => {
+    setPreviewIndex(prev => (prev === index ? null : index));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   return (
@@ -45,30 +72,75 @@ export default function Dashboard() {
         ) : (
           <ul className="space-y-2">
             {uploadedFiles.map((file, index) => (
-              <li key={index} className="text-foreground">
+              <li
+                key={index}
+                className="flex justify-between items-center text-foreground"
+              >
                 <Button
                   variant="link"
                   className="p-0 h-auto text-foreground"
-                  onClick={() => setPreview(file.slice(0, 200))}
+                  onClick={() => togglePreview(index)}
                 >
-                  File {index + 1}: {file.slice(0, 50)}...
+                  File {index + 1}{" "}
+                  <span className="text-sm text-muted-foreground">
+                    ({formatFileSize(file.size)})
+                  </span>
+                  : {file.content.slice(0, 50)}...
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="p-1 h-auto w-auto"
+                  onClick={() => handleDelete(index)}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 text-muted-foreground"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4M3 7h18"
+                    />
+                  </svg>
                 </Button>
               </li>
             ))}
           </ul>
         )}
-        {preview && (
-          <div className="mt-4 p-4 border rounded-xl bg-muted/50">
-            <h3 className="text-lg font-semibold text-foreground">Preview</h3>
+        {previewIndex !== null && (
+          <div className="mt-4 p-4 border rounded-xl bg-muted/50 relative">
+            <h3 className="text-xs font-bold text-muted-foreground mb-2">
+              Preview
+            </h3>
             <pre className="text-sm text-foreground whitespace-pre-wrap">
-              {preview}
+              {uploadedFiles[previewIndex].content.slice(0, 200)}
             </pre>
+            <p className="text-xs text-muted-foreground mt-2">
+              File Size: {formatFileSize(uploadedFiles[previewIndex].size)}
+            </p>
             <Button
               variant="ghost"
-              className="mt-2"
-              onClick={() => setPreview("")}
+              className="absolute top-2 right-2 p-1 h-auto w-auto"
+              onClick={() => setPreviewIndex(null)}
             >
-              Close Preview
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 text-muted-foreground"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
             </Button>
           </div>
         )}

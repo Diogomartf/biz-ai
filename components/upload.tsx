@@ -6,19 +6,23 @@ import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
 
 interface UploadProps {
-  onUpload: (data: string) => void;
+  onUpload: (data: string, fileSize: number) => void;
 }
 
 export default function Upload({ onUpload }: UploadProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [feedback, setFeedback] = useState<string>("");
+  const [progress, setProgress] = useState(0);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsLoading(true);
-    setFeedback("Uploading...");
+    setProgress(0);
+
+    const interval = setInterval(() => {
+      setProgress(prev => (prev < 90 ? prev + 10 : prev));
+    }, 100);
 
     const reader = new FileReader();
 
@@ -28,15 +32,19 @@ export default function Upload({ onUpload }: UploadProps) {
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
       const text = XLSX.utils.sheet_to_txt(sheet);
-      onUpload(text);
-      setFeedback("Upload successful!");
-      setTimeout(() => setFeedback(""), 2000); // Clear feedback after 2s
-      setIsLoading(false);
+      clearInterval(interval);
+      setProgress(100);
+      onUpload(text, file.size);
+      setTimeout(() => {
+        setIsLoading(false);
+        setProgress(0);
+      }, 500);
     };
 
     reader.onerror = () => {
-      setFeedback("Upload failed!");
+      clearInterval(interval);
       setIsLoading(false);
+      setProgress(0);
     };
 
     reader.readAsBinaryString(file);
@@ -70,10 +78,13 @@ export default function Upload({ onUpload }: UploadProps) {
           </span>
         </Button>
       </label>
-      {feedback && (
-        <p className="mt-2 text-sm text-foreground animate-in fade-in duration-300">
-          {feedback}
-        </p>
+      {isLoading && (
+        <div className="mt-2 h-2 w-full bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
       )}
     </div>
   );
