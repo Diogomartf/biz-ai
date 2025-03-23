@@ -5,48 +5,26 @@ import { pinecone, indexName, ensureIndexExists } from "@/lib/pinecone";
 import { generateEmbedding } from "@/lib/transformer";
 
 export async function GET() {
-  try {
-    const allFiles = await db.select().from(files);
-    return NextResponse.json(allFiles, { status: 200 });
-  } catch (error) {
-    console.error("Error fetching files:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch files", details: String(error) },
-      { status: 500 }
-    );
-  }
+  const allFiles = await db.select().from(files);
+  return NextResponse.json(allFiles, { status: 200 });
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const { content, size, processed_data } = await req.json();
-    const [newFile] = await db
-      .insert(files)
-      .values({ content, size, processedData: processed_data })
-      .returning();
+  const { content, size, processed_data } = await req.json();
+  const [newFile] = await db
+    .insert(files)
+    .values({ content, size, processedData: processed_data })
+    .returning();
 
-    console.log("Generating embedding for file ID:", newFile.id);
-    const embedding = await generateEmbedding(processed_data);
-    console.log("Embedding generated, length:", embedding.length);
+  const embedding = await generateEmbedding(processed_data);
+  await ensureIndexExists();
+  await pinecone.Index(indexName).upsert([
+    {
+      id: newFile.id.toString(),
+      values: embedding,
+      metadata: { fileId: newFile.id, size },
+    },
+  ]);
 
-    await ensureIndexExists();
-    const index = pinecone.Index(indexName);
-    console.log("Upserting to Pinecone...");
-    await index.upsert([
-      {
-        id: newFile.id.toString(),
-        values: embedding,
-        metadata: { fileId: newFile.id, size },
-      },
-    ]);
-    console.log("Upsert complete for file ID:", newFile.id);
-
-    return NextResponse.json(newFile, { status: 201 });
-  } catch (error) {
-    console.error("Error saving file:", error);
-    return NextResponse.json(
-      { error: "Failed to save file", details: String(error) },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(newFile, { status: 201 });
 }

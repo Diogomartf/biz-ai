@@ -4,6 +4,7 @@ import Groq from "groq-sdk";
 import { retrieveRelevantData } from "@/lib/retrieve";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! });
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 
 // Rough token estimation: 1 token ≈ 4 chars
 function estimateTokens(text: string): number {
@@ -56,16 +57,19 @@ export async function POST(req: NextRequest) {
     };
 
     // Normalize messages
-    const normalizedMessages = messages.map((msg: any) => ({
-      role: msg.role,
-      content: msg.content,
-    }));
+    const normalizedMessages = messages.map(
+      (msg: { role: string; content: string }) => ({
+        role: msg.role,
+        content: msg.content,
+      })
+    );
 
     // Estimate total tokens (system + user messages + max output)
     const totalTokens =
       estimateTokens(systemPrompt.content) +
       normalizedMessages.reduce(
-        (sum, msg) => sum + estimateTokens(msg.content),
+        (sum: number, msg: { content: string }) =>
+          sum + estimateTokens(msg.content),
         0
       ) +
       1000; // Reserve for completion
@@ -85,9 +89,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Send to Groq
     const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: GROQ_MODEL,
       messages: [systemPrompt, ...normalizedMessages],
       max_tokens: 1000,
       temperature: 0.7,

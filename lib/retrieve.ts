@@ -14,16 +14,10 @@ export async function retrieveRelevantData(query: string, topK: number = 3) {
   });
 
   const fileIds = results.matches.map(match => Number(match.id));
-  let relevantFiles;
-  if (fileIds.length === 0) {
-    relevantFiles = [];
-  } else {
-    relevantFiles = await db
-      .select()
-      .from(files)
-      .where(inArray(files.id, fileIds));
-  }
-
+  const relevantFiles =
+    fileIds.length === 0
+      ? []
+      : await db.select().from(files).where(inArray(files.id, fileIds));
   return relevantFiles.map(file => ({
     id: file.id,
     content: file.content,
