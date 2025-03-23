@@ -4,6 +4,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import Upload from "@/components/upload";
 import * as XLSX from "xlsx";
 
@@ -18,6 +25,8 @@ export default function Dashboard() {
   const [uploadedFiles, setUploadedFiles] = useState<FileData[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [pendingChanges, setPendingChanges] = useState<string[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<number | null>(null);
 
   useEffect(() => {
     fetchFiles();
@@ -73,15 +82,27 @@ export default function Dashboard() {
     }, 2000);
   };
 
-  const handleDelete = async (id: number) => {
+  const initiateDelete = (id: number) => {
+    setFileToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (fileToDelete === null) return;
+
     try {
-      const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/files/${fileToDelete}`, {
+        method: "DELETE",
+      });
       if (!res.ok) {
         throw new Error(`Failed to delete file: ${res.statusText}`);
       }
       await fetchFiles();
     } catch (error) {
       console.error("Delete error:", error);
+    } finally {
+      setDeleteDialogOpen(false);
+      setFileToDelete(null);
     }
   };
 
@@ -138,7 +159,7 @@ export default function Dashboard() {
                 <Button
                   variant="ghost"
                   className="p-1 h-auto w-auto"
-                  onClick={() => handleDelete(file.id)}
+                  onClick={() => initiateDelete(file.id)}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -195,6 +216,31 @@ export default function Dashboard() {
             </div>
           )}
       </div>
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-foreground">
+              Are you sure you want to delete this file? This action cannot be
+              undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Link href="/" className="mt-6">
         <Button className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">
           Back to Chat
