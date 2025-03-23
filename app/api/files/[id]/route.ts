@@ -1,7 +1,9 @@
 // app/api/files/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { db, files } from "@/lib/db"; // Named imports
+import { db, files } from "@/lib/db";
+import { pinecone, indexName } from "@/lib/pinecone";
 import { eq } from "drizzle-orm";
+import { generateEmbedding } from "@/lib/transformer";
 
 export async function DELETE(
   req: NextRequest,
@@ -21,6 +23,10 @@ export async function DELETE(
     if (deleted.length === 0) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
+
+    const index = pinecone.Index(indexName);
+    await index.deleteOne(idNumber.toString());
+
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("Error deleting file:", error);
@@ -51,6 +57,17 @@ export async function PUT(
     if (!updatedFile) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
+
+    const embedding = await generateEmbedding(processed_data);
+    const index = pinecone.Index(indexName);
+    await index.upsert([
+      {
+        id: idNumber.toString(),
+        values: embedding,
+        metadata: { fileId: idNumber, size },
+      },
+    ]);
+
     return NextResponse.json(updatedFile, { status: 200 });
   } catch (error) {
     console.error("Error updating file:", error);

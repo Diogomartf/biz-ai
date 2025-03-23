@@ -1,112 +1,95 @@
-// components/chat.tsx
+// app/chat.tsx
 "use client";
 
-import { useChat } from "@ai-sdk/react";
-import { useEffect, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import Link from "next/link";
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
 
 export default function Chat() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } =
-    useChat({
-      api: "/api/chat",
-      // For now, context is empty; we'll add it via API in Phase 3
-    });
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const handleSend = async () => {
+    if (!input.trim()) return;
 
-  const useDebouncedScroll = (delay: number) => {
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    // Add user message to UI
+    const userMessage: Message = { role: "user", content: input };
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
 
-    const scrollToBottom = () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
-        const viewport = scrollRef.current?.querySelector(
-          "[data-radix-scroll-area-viewport]"
-        );
-        if (viewport) {
-          viewport.scrollTo({
-            top: viewport.scrollHeight,
-            behavior: "smooth",
-          });
-        }
-      }, delay);
-    };
+    try {
+      // Send to API
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [...messages, userMessage] }),
+      });
 
-    useEffect(() => {
-      return () => {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("API response:", data); // Debug log
+
+      // Add assistant response to UI
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: data.response,
       };
-    }, []);
-
-    return scrollToBottom;
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      const errorMessage: Message = {
+        role: "assistant",
+        content: "Sorry, something went wrong.",
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
   };
 
-  const scrollToBottom = useDebouncedScroll(100);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
-
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-foreground">BizAI Chat</h1>
-        <Link href="/dashboard" className="cursor-pointer">
-          <Button className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">
-            Go to Dashboard
-          </Button>
-        </Link>
-      </div>
-      <ScrollArea
-        ref={scrollRef}
-        className="flex-1 mb-6 p-4 border rounded-2xl bg-background scroll-smooth"
-      >
-        <div className="space-y-4">
-          {messages.map(msg => (
+    <div className="flex flex-col h-screen max-w-2xl mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Chat</h1>
+      <div className="flex-1 overflow-y-auto mb-4 p-4 border rounded-xl bg-background">
+        {messages.length === 0 ? (
+          <p className="text-muted-foreground">Start a conversation!</p>
+        ) : (
+          messages.map((msg, index) => (
             <div
-              key={msg.id}
-              className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              } animate-in fade-in slide-in-from-bottom-2 duration-300`}
+              key={index}
+              className={`mb-2 ${
+                msg.role === "user" ? "text-right" : "text-left"
+              }`}
             >
-              <div
-                className={`max-w-xs p-3 rounded-2xl ${
+              <span
+                className={`inline-block p-2 rounded-lg ${
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground"
+                    : "bg-muted"
                 }`}
               >
                 {msg.content}
-              </div>
+              </span>
             </div>
-          ))}
-        </div>
-      </ScrollArea>
-      <form onSubmit={handleSubmit} className="flex gap-3">
+          ))
+        )}
+      </div>
+      <div className="flex gap-2">
         <Input
           value={input}
-          onChange={handleInputChange}
+          onChange={e => setInput(e.target.value)}
+          onKeyPress={e => e.key === "Enter" && handleSend()}
           placeholder="Type your message..."
-          className="flex-1 rounded-xl bg-background text-foreground border-input"
+          className="flex-1"
         />
-        <Button
-          type="submit"
-          disabled={isLoading}
-          className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
-        >
-          {isLoading ? (
-            <>
-              <span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
-              Sending
-            </>
-          ) : (
-            "Send"
-          )}
-        </Button>
-      </form>
+        <Button onClick={handleSend}>Send</Button>
+      </div>
     </div>
   );
 }

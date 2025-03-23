@@ -1,6 +1,8 @@
 // app/api/files/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { db, files } from "@/lib/db"; // Named imports
+import { db, files } from "@/lib/db";
+import { pinecone, indexName, ensureIndexExists } from "@/lib/pinecone";
+import { generateEmbedding } from "@/lib/transformer";
 
 export async function GET() {
   try {
@@ -22,6 +24,23 @@ export async function POST(req: NextRequest) {
       .insert(files)
       .values({ content, size, processedData: processed_data })
       .returning();
+
+    console.log("Generating embedding for file ID:", newFile.id);
+    const embedding = await generateEmbedding(processed_data);
+    console.log("Embedding generated, length:", embedding.length);
+
+    await ensureIndexExists();
+    const index = pinecone.Index(indexName);
+    console.log("Upserting to Pinecone...");
+    await index.upsert([
+      {
+        id: newFile.id.toString(),
+        values: embedding,
+        metadata: { fileId: newFile.id, size },
+      },
+    ]);
+    console.log("Upsert complete for file ID:", newFile.id);
+
     return NextResponse.json(newFile, { status: 201 });
   } catch (error) {
     console.error("Error saving file:", error);

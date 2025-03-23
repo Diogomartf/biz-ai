@@ -11,6 +11,8 @@
   "dependencies": {
     "@ai-sdk/groq": "^1.2.0",
     "@ai-sdk/react": "^1.2.0",
+    "@huggingface/transformers": "^3.4.0",
+    "@pinecone-database/pinecone": "^5.1.1",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-scroll-area": "^1.2.3",
     "@radix-ui/react-slot": "^1.1.2",
@@ -20,6 +22,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.41.0",
+    "groq-sdk": "^0.17.0",
     "lucide-react": "^0.483.0",
     "next": "15.2.3",
     "next-themes": "^0.4.6",
