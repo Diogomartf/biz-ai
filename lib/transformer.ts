@@ -25,14 +25,14 @@ async function initializeModel() {
 // Mean pooling to convert token embeddings to sentence embedding
 function meanPooling(
   tokenEmbeddings: Float32Array[],
-  attentionMask: BigInt[]
+  attentionMask: bigint[]
 ): number[] {
   const embeddingDim = tokenEmbeddings[0].length; // e.g., 384
   const sentenceEmbedding = new Array(embeddingDim).fill(0);
   let totalWeight = 0;
 
   for (let i = 0; i < tokenEmbeddings.length; i++) {
-    const weight = Number(attentionMask[i]); // Convert BigInt to number
+    const weight = Number(attentionMask[i]); // Convert bigint to number
     totalWeight += weight;
     for (let j = 0; j < embeddingDim; j++) {
       sentenceEmbedding[j] += tokenEmbeddings[i][j] * weight;
@@ -53,8 +53,30 @@ function meanPooling(
 export async function generateEmbedding(text: string): Promise<number[]> {
   await initializeModel();
 
+  if (!tokenizer || !model) {
+    throw new Error("Failed to initialize model or tokenizer");
+  }
+
+  // Define a more specific type for the tokenizer and model functions
+  type TokenizerFn = (
+    text: string,
+    options: {
+      padding: boolean;
+      truncation: boolean;
+      return_tensors: string;
+    }
+  ) => Record<string, { data: unknown[] }>;
+
+  type ModelFn = (inputs: ReturnType<TokenizerFn>) => Promise<{
+    last_hidden_state: { data: unknown[] };
+  }>;
+
+  // Cast with more specific function types
+  const tokenizerFn = tokenizer as unknown as TokenizerFn;
+  const modelFn = model as unknown as ModelFn;
+
   // Tokenize input
-  const inputs = tokenizer!(text, {
+  const inputs = tokenizerFn(text, {
     padding: true,
     truncation: true,
     return_tensors: "pt",
@@ -62,25 +84,35 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   console.log("Inputs tokenized:", !!inputs);
 
   // Get model output (hidden states)
-  const outputs = await model!(inputs);
+  const outputs = await modelFn(inputs);
   console.log("Model outputs:", !!outputs);
 
   // Extract last hidden state (token embeddings)
   const tokenEmbeddings = outputs.last_hidden_state.data; // Shape: [1, seq_len, 384]
-  const attentionMask = inputs.attention_mask.data; // Shape: [1, seq_len], BigInt values
+  const attentionMask = inputs.attention_mask.data; // Shape: [1, seq_len], bigint values
   console.log("Token embeddings length:", tokenEmbeddings.length);
   console.log("Attention mask length:", attentionMask.length);
 
   // Convert to arrays and apply mean pooling
-  const embeddingsArray = Array.from(tokenEmbeddings).reduce(
-    (acc: Float32Array[], _, i) => {
-      if (i % 384 === 0)
-        acc.push(new Float32Array(tokenEmbeddings.slice(i, i + 384)));
-      return acc;
-    },
-    []
-  );
-  const maskArray = Array.from(attentionMask) as BigInt[];
+  // Assuming tokenEmbeddings is a flat array that needs to be chunked into embeddings
+  const embeddingDim = 384; // Adjust if needed
+  const sequenceLength = attentionMask.length;
+  const embeddingsArray: Float32Array[] = [];
+
+  // Create properly typed arrays
+  for (let i = 0; i < sequenceLength; i++) {
+    const start = i * embeddingDim;
+    // Create a properly typed Float32Array from the slice
+    const embedding = new Float32Array(embeddingDim);
+    for (let j = 0; j < embeddingDim; j++) {
+      if (start + j < tokenEmbeddings.length) {
+        embedding[j] = Number(tokenEmbeddings[start + j]);
+      }
+    }
+    embeddingsArray.push(embedding);
+  }
+
+  const maskArray = Array.from(attentionMask).map(val => BigInt(Number(val)));
 
   return meanPooling(embeddingsArray, maskArray);
 }
