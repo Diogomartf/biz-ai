@@ -1,30 +1,34 @@
-// app/api/chat/route.ts
-import { NextRequest } from "next/server";
-import { groq } from "@ai-sdk/groq";
-import { streamText } from "ai";
+// app/api/files/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { files } from "@/lib/db";
 
-export const maxDuration = 30;
+export async function GET() {
+  try {
+    const allFiles = await db.select().from(files);
+    return NextResponse.json(allFiles, { status: 200 });
+  } catch (error) {
+    console.error("Error fetching files:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch files", details: String(error) },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json();
-    const latestMessage = messages[messages.length - 1].content;
-
-    const result = await streamText({
-      model: groq("llama3-70b-8192"),
-      prompt: latestMessage,
-      maxTokens: 150,
-    });
-
-    return result.toDataStreamResponse();
+    const { content, size, processed_data } = await req.json();
+    const [newFile] = await db
+      .insert(files)
+      .values({ content, size, processedData: processed_data })
+      .returning();
+    return NextResponse.json(newFile, { status: 201 });
   } catch (error) {
-    console.error("Error streaming from Groq:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to stream response" }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+    console.error("Error saving file:", error);
+    return NextResponse.json(
+      { error: "Failed to save file", details: String(error) },
+      { status: 500 }
     );
   }
 }
