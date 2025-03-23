@@ -21,6 +21,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchFiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchFiles = async () => {

@@ -4,11 +4,11 @@ import db from "@/lib/db";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
-    console.log("Deleting file with ID:", id); // Debug log
+    const { id } = await params;
+
     if (!id) {
       return NextResponse.json({ error: "Missing file ID" }, { status: 400 });
     }
