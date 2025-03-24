@@ -1,5 +1,22 @@
 // lib/transformer.ts
 import { AutoModel, AutoTokenizer, env } from "@huggingface/transformers";
+import * as fs from "fs";
+
+// Set up cache directory
+const cacheDir = process.env.TRANSFORMERS_CACHE || "/tmp/.cache/huggingface";
+try {
+  fs.mkdirSync(cacheDir, { recursive: true });
+  console.log(`Cache directory created at: ${cacheDir}`);
+} catch (error) {
+  console.warn(
+    `Warning: Failed to create cache directory: ${
+      error instanceof Error ? error.message : String(error)
+    }`
+  );
+}
+
+// Set cache environment variable programmatically
+env.cacheDir = cacheDir;
 
 // Disable local models for remote inference
 env.allowLocalModels = false;
